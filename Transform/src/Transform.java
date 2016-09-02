@@ -1,6 +1,11 @@
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Reader;
+
+import javax.swing.JOptionPane;
 
 import com.google.gson.Gson;
 
@@ -137,34 +142,53 @@ public class Transform{
 	
 	//test client, remove this after testing
 	public static void main(String[] args){
-		double[] result=new double[2];
-		String[] trans={"translate(415,497)scale(1,1)translate(0,0)scale(1)",	"translate(1245,497)scale(1,1)translate(0,0)scale(1)"};
-		double gazeX=656;
-		double gazeY=412;
-		int qid=0;
-		int graph=Transform.GazePointToGraphPoint(gazeX, gazeY, trans, 13, 68, 1660, 994, result);
-		System.out.println("graph: "+graph);
-		System.out.println("coordinate on graph: "+result[0]+" "+result[1]);
+		
+
+		String inputFile=JOptionPane.showInputDialog("Enter results filename:");
+		BufferedReader reader;
 		NodesLocationManager NLM=new NodesLocationManager();
-		Node closestNode=NLM.getClosestNode(qid,result[0],result[1]);
-		if(closestNode!=null){
-			double left= (graph==0)? 0 : 1660/2;
-			double right= (graph==1||trans.length==1)? 1660: 1660/2;
-			boolean nodeVisible=Transform.isGraphPointVisible(closestNode.x, closestNode.y, trans[graph], left, right,994);
-			System.out.println("closest node: "+closestNode.id+"\tvisible: "+nodeVisible);
-		}
-		else{
-			System.out.println("no node within 40px radius");
-		}
+		try {
+			reader = new BufferedReader(new FileReader(inputFile));
+			PrintWriter writer=new PrintWriter("gaze-node.txt","UTF-8");
+			String line;
+			while ((line = reader.readLine()) != null){
+		    	String[] parts=line.split("\t",-1);
+		    	int qid=Integer.parseInt(parts[0]);
+		    	double gazeX=Double.parseDouble(parts[2]);
+		    	double gazeY=Double.parseDouble(parts[3]);
+		    	String[] trans={parts[4],parts[5]};
+		    	double[] result=new double[2];
+				int graph=Transform.GazePointToGraphPoint(gazeX, gazeY, trans, 13, 68, 1660, 994, result);
+				writer.print(qid+"\t");
+				writer.print(parts[1]+"\t");
+				writer.print("graph: "+graph+"\t");
+				writer.print("coordinate on graph: ("+result[0]+", "+result[1]+")\t");
+				Node closestNode=NLM.getClosestNode(qid,result[0],result[1]);
+				if(closestNode!=null){
+					double left= (graph==0)? 0 : 1660/2;
+					double right= (graph==1||trans.length==1)? 1660: 1660/2;
+					boolean nodeVisible=Transform.isGraphPointVisible(closestNode.x, closestNode.y, trans[graph], left, right,994);
+					writer.println("\tclosest node: "+closestNode.id+"\tvisible: "+nodeVisible);
+				}
+				else{
+					writer.println("no node within 50px radius");
+				}
+			}
+			writer.close();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		
 		
 	}
 }
 
 class NodesLocationManager{
-	private String graphDataDirectory="E:\\XAMPP\\htdocs\\GraphStudy2\\php\\";//change this to your directory
+	private String graphDataDirectory="G:\\OldGraphStudy2\\";//change this to your directory
 	private int currentQuestion=-1;
 	private Node[] nodes;
-	private int maxDistance=40;
+	private int maxDistance=50;
 	
 	private void loadNodes(int qid){
 		Gson gson = new Gson();
@@ -173,9 +197,9 @@ class NodesLocationManager{
 			reader=new FileReader(graphDataDirectory+"graph-data"+qid+"\\graph-nodes.txt");
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
-			}finally{
-				nodes=gson.fromJson(reader,Node[].class);
 			}
+		nodes=gson.fromJson(reader,Node[].class);	
+		System.out.println("loaded json "+nodes.length);
 	}
 	public Node getClosestNode(int questionID, double x, double y){
 		if(currentQuestion!=questionID){
