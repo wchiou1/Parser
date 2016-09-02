@@ -1,7 +1,7 @@
-package EyeTrackerParser;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,17 +27,22 @@ public class Parser{
 		    int MediaWidthIndex=0;
 		    int ExportDateIndex=0;
 		    int LocalTimeIndex=0;
+		    int GazeEventTypeIndex=0;
+		    int GazeDurationIndex=0;
 		    int MediaWidth=0;
 		    int TimeIndex=0;
 		    String line=reader.readLine();//Read the index line
 		    String[] indicies=line.split("\t",-1);
-		    System.out.println("IndexListLength:"+indicies.length);
 		    for(int i=0;i<indicies.length;i++){
 		    	String term=indicies[i];
 		    	if(term.equalsIgnoreCase("FixationPointX (MCSpx)"))
 		    		FixationPointXIndex=i;
 		    	if(term.equalsIgnoreCase("FixationPointY (MCSpx)"))
 		    		FixationPointYIndex=i;
+		    	if(term.equalsIgnoreCase("GazeEventType"))
+		    		GazeEventTypeIndex=i;
+		    	if(term.equalsIgnoreCase("GazeEventDuration"))
+		    		GazeDurationIndex=i;
 		    	if(term.equalsIgnoreCase("GazePointX (ADCSpx)"))
 		    		GazePointXIndex=i;
 		    	if(term.equalsIgnoreCase("GazePointY (ADCSpx)"))
@@ -51,6 +56,7 @@ public class Parser{
 		    	if(term.equalsIgnoreCase("ExportDate"))
 		    		ExportDateIndex=i;
 		    }
+		    int trash=0;
 		    while ((line = reader.readLine()) != null){
 		    	String[] parts=line.split("\t",-1);
 		    	
@@ -59,14 +65,20 @@ public class Parser{
 		        DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss.SSS z");
 		        Date date = dateFormat.parse(dateString);
 		        long unixTime = (long) date.getTime();
-		    	
+		        
+		        if(parts[FixationPointXIndex].length()!=0&&parts[FixationPointYIndex].length()!=0&&parts[GazeEventTypeIndex].length()!=0&&parts[GazeDurationIndex].length()!=0)
+		    		System.out.println(""+unixTime+"\t"+parts[GazeEventTypeIndex]+"("+parts[FixationPointXIndex]+","+parts[FixationPointYIndex]+")|"+parts[GazeDurationIndex]);
 		    	//Store the coordinate data along with the time
 		    	if(parts[MediaWidthIndex].length()!=0&&parts[GazePointXIndex].length()!=0&&parts[GazePointYIndex].length()!=0)
 		    		FixationPoints.add(new TimedCoords(Double.parseDouble(parts[GazePointXIndex]),
 		    				Double.parseDouble(parts[GazePointYIndex]),
 		    				unixTime,
 		    				Integer.parseInt(parts[MediaWidthIndex])));
+		    	else
+		    		trash++;
+		    	
 		    }
+		    System.out.println("GazePoints discarded:"+trash);
 		    
 			reader.close();
 			inputFile=JOptionPane.showInputDialog("Enter graphTracker filename:");
@@ -89,7 +101,7 @@ public class Parser{
 		    
 		    ArrayList<String> results=new ArrayList<String>();
 			
-		    System.out.println(GraphMovements.size()+"\nFixationPoints:"+FixationPoints.size());
+		    System.out.println("GraphMovements:"+GraphMovements.size()+"\nGazePoints:"+FixationPoints.size());
 		    
 			for(TimedCoords tc:FixationPoints){
 				long cameraTime=tc.time;
@@ -106,17 +118,21 @@ public class Parser{
 						//The next iteration exists, test if the time is higher
 						if(GraphMovements.get(i+1).time>=cameraTime){
 							//Time is higher, use previous time
-							results.add(""+cameraTime+"|"+tempTime);
-							System.out.println("result:"+cameraTime+"|"+tempTime);
+							results.add(""+gt.id+"\t"+cameraTime+"\t"+tc.x+"\t"+tc.y+"\t"+gt.transform0+"\t"+gt.transform1);
 							break;
 						}
 				}
 			}
 			
+			PrintWriter writer = new PrintWriter("results.txt", "UTF-8");
+			for(String str:results){
+				writer.println(str);
+			}
+			writer.close();
 			
 		}catch(Exception e){
 			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Error scanning task file for labels\n"+e.getMessage());
+			JOptionPane.showMessageDialog(null, "Error:\n"+e.getMessage());
 			return;
 		}
 	}
