@@ -5,8 +5,8 @@ import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
+import java.util.Stack;
 
 import javax.swing.JOptionPane;
 
@@ -74,7 +74,7 @@ public class Parser{
 		        	double fpy=Double.parseDouble(parts[FixationPointYIndex]);
 		        	if(FixationPoints.size()==0||FixationPoints.get(FixationPoints.size()-1).x!=fpx||FixationPoints.get(FixationPoints.size()-1).y!=fpy){
 		        		//The last point is different
-		        		System.out.println(""+unixTime+"\t"+parts[GazeEventTypeIndex]+"("+parts[FixationPointXIndex]+","+parts[FixationPointYIndex]+")|"+parts[GazeDurationIndex]);
+		        		//System.out.println(""+unixTime+"\t"+parts[GazeEventTypeIndex]+"("+parts[FixationPointXIndex]+","+parts[FixationPointYIndex]+")|"+parts[GazeDurationIndex]);
 		        		FixationPoints.add(new TimedCoords(fpx,fpy,unixTime,Integer.parseInt(parts[GazeDurationIndex])));
 		        	}
 		        	
@@ -102,6 +102,7 @@ public class Parser{
 		    	//Parse the thing
 		    	String[] parts=line.split("\t", -1);
 		    	//Format: Question id, timestamp, graph0 transform, graph1 transform(blank if none)
+		    	//System.out.println(line);
 		    	if(parts.length>3)
 		    		GraphMovements.add(new GraphTransform(Integer.parseInt(parts[0]),Long.parseLong(parts[1]),parts[2],parts[3]));
 		    	else
@@ -177,10 +178,10 @@ public class Parser{
 					}
 				}
 			}
-			//Align and determine closest node for gaze points
-			
+			//Align and determine closest node for gaze points(UNUSED)
 			NodesLocationManager NLM=new NodesLocationManager();
 			PrintWriter writer=new PrintWriter(filename+"-gaze-nodes.txt","UTF-8");
+			/*
 	    	for(String parseResult:gazeResults){
 				String[] parts=parseResult.split("\t",-1);
 		    	int qid=Integer.parseInt(parts[0]);
@@ -201,11 +202,11 @@ public class Parser{
 					writer.println("\tclosest node: "+closestNode.id);
 				}
 				else{
-					writer.println("no node within 50px radius found");
+					writer.println("no node within 100px radius found");
 				}
 	    	}
+	    	*/
 			writer.close();
-			
 			ArrayList<String> switchResults = new ArrayList<String>();
 			ArrayList<String> switchNodes = new ArrayList<String>();
 			
@@ -214,6 +215,8 @@ public class Parser{
 			int previousGraph=-1;
 			String prevTrans="";
 			String prevX="";
+			String prevNode="";
+			String prevTime="";
 			//Align and determine nodes for fixation points
 			writer=new PrintWriter(filename+"-fix-nodes.txt","UTF-8");
 	    	for(String parseResult:fixResults){
@@ -227,7 +230,7 @@ public class Parser{
 		    	double[] result=new double[2];
 		    	//System.out.println(parseResult);
 				int graph=Transform.GazePointToGraphPoint(gazeX, gazeY, trans, 13, 68, 1660, 994, result);
-				
+				Node closestNode=NLM.getClosestNode(qid,result[0],result[1]);
 				
 				//If the previousGraph is -1 then obviously there is no context switch
 				if(previousGraph!=-1&&graph!=-1){
@@ -237,7 +240,13 @@ public class Parser{
 						//Test if the graphIndex is different from previous
 						if(graph!=previousGraph){
 							//Graph id is not the same! Context switch detected!
+							String closeNode="";
 							switchCount++;
+							if(closestNode!=null&&graph!=-1)
+								closeNode=""+closestNode.id;
+							else
+								closeNode="none";
+							switchNodes.add(""+qid+"\t"+prevTime+"\tfrom ("+previousGraph+"|"+prevNode+") to ("+graph+"|"+closeNode+")");
 							//System.out.println("Question: "+qid+"|"+switchCount);
 							//System.out.println("("+previousGraph+"|"+graph+")("+prevX+"|"+parts[2]+")");
 							previousGraph=graph;
@@ -246,9 +255,9 @@ public class Parser{
 					else{
 						//We are not on the same question, context switch is impossible
 						//Record count into results log
-						System.out.println(questionIndex);
-						System.out.println(getVisModel(prevTrans));
-						switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans));
+						//System.out.println(questionIndex);
+						//System.out.println(getVisModel(prevTrans));
+						switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans)+"\tGraphSize: "+NLM.loadNodes(questionIndex));
 						questionIndex=qid;
 						previousGraph=-1;
 						switchCount=0;
@@ -258,9 +267,9 @@ public class Parser{
 					previousGraph=graph;//Set the previous graph
 					//if the we are no longer on the same question somehow, update
 					if(qid!=questionIndex){
-						System.out.println(questionIndex);
-						System.out.println(getVisModel(prevTrans));
-						switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans));
+						//System.out.println(questionIndex);
+						//System.out.println(getVisModel(prevTrans));
+						switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans)+"\tGraphSize: "+NLM.loadNodes(questionIndex));
 						questionIndex=qid;
 						previousGraph=-1;
 						switchCount=0;
@@ -270,37 +279,81 @@ public class Parser{
 				if(!parts[4].equalsIgnoreCase("graph_hidden"))
 					prevTrans=parts[4]+"\t"+parts[5];
 				writer.print(qid+"\t");
+				prevTime=parts[1];
 				writer.print(parts[1]+"\t");
 				writer.print("graph: "+graph+"\t");
 				writer.print(""+parts[6]+"\t");
 				//writer.print(""+getVisModel(parts[4]+"\t"+parts[5])+"\t");
-				writer.print("x: "+parts[2]+"\t");
-				Node closestNode=NLM.getClosestNode(qid,result[0],result[1]);
+					
 				if(closestNode!=null&&graph!=-1){
 					double left= (graph==0)? 0 : 1660/2;
 					double right= (graph==1||trans.length==1)? 1660: 1660/2;
 					boolean nodeVisible=Transform.isGraphPointVisible(closestNode.x, closestNode.y, trans[graph], left, right,994);
-					writer.println("\tclosest node: "+closestNode.id);
+					writer.println("closest node: "+closestNode.id);
+					prevNode=""+closestNode.id;
 				}
 				else{
-					writer.println("no node within 50px radius found");
+					writer.println("no node within 100px radius found");
+					prevNode="none";
 				}
 	    	}
 	    	//System.out.println(questionIndex);
 			//System.out.println(getVisModel(prevTrans));
-			switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans));
+			switchResults.add("Question "+questionIndex+": "+switchCount+" switches\t"+getVisModel(prevTrans)+"\tGraphSize: "+NLM.loadNodes(questionIndex));
 	    	writer.close();
 	    	
+	    	//Need to add size of graphs(nodes)
 	    	writer = new PrintWriter(filename+"-switches.txt", "UTF-8");
 			for(String str:switchResults){
 				writer.println(str);
 			}
 			writer.close();
 			
+			writer = new PrintWriter(filename+"-switchNodes.txt","UTF-8");
+			for(String str:switchNodes){
+				writer.println(str);
+			}
+			writer.close();
 			
-			
-			
-
+			reader.close();
+			reader = new BufferedReader(new FileReader(filename+"-fix-nodes.txt"));
+			writer = new PrintWriter(filename+"-filtered-nodes");
+			Stack<String> fixNodes = new Stack<String>();
+			Stack<String> filterNodes = new Stack<String>();
+			while ((line = reader.readLine()) != null){
+				fixNodes.push(line);
+			}
+			reader.close();
+			while(!fixNodes.isEmpty()){
+				//Get a value from both stacks
+				String temp=fixNodes.pop();
+				String[] parts=temp.split("\t",-1);
+				//System.out.println(parts[4]+"|"+temp);
+				String[] parts2=null;
+				if(!filterNodes.isEmpty())
+					parts2=filterNodes.pop().split("\t",-1);
+				//Test values if they should be merged
+				if(parts2==null){//If there was no log in the filtered stack
+					//just put the first log in the filtered stack
+					filterNodes.push(parts[0]+"\t"+parts[1]+"\t"+parts[2]+"\t"+parts[3]+"\t"+parts[4]);
+					continue;
+				}
+				//Either add both values to the filtered stack or add the merged log to the filtered stack
+				
+				//Check if we should merge
+				//Check if question and node is the same
+				if(parts[0].equalsIgnoreCase(parts2[0])&&parts[4].equalsIgnoreCase(parts2[4])){
+					//System.out.println(parts2[4]);
+					filterNodes.push(parts[0]+"\t"+parts[1]+"\t"+parts[2]+"\t"+(Integer.parseInt(parts[3])+Integer.parseInt(parts2[3]))+"\t"+parts2[4]);
+					continue;
+				}
+				filterNodes.push(parts2[0]+"\t"+parts2[1]+"\t"+parts2[2]+"\t"+parts2[3]+"\t"+parts2[4]);
+				filterNodes.push(parts[0]+"\t"+parts[1]+"\t"+parts[2]+"\t"+parts[3]+"\t"+parts[4]);
+			}
+			while(!filterNodes.isEmpty()){
+				writer.println(filterNodes.pop());
+			}
+			writer.close();
 			
 		}catch(Exception e){
 			e.printStackTrace();
@@ -309,7 +362,7 @@ public class Parser{
 		}
 	}
 	private static String getVisModel(String transform){
-		System.out.println(transform);
+		//System.out.println(transform);
 		String[] parts=transform.split("\t");
 		if(parts[0].equalsIgnoreCase("graph_hidden"))
 			return "None";
