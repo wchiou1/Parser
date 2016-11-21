@@ -1,7 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 
@@ -187,9 +186,9 @@ class NodesLocationManager{
 	private String graphDataDirectory="C:\\xampp\\htdocs\\OldGraphStudy2\\php\\";//change this to your directory
 	private int currentQuestion=-1;
 	private Node[] nodes;
-	private int maxDistance=50;
+	private int maxDistance=100;
 	
-	private void loadNodes(int qid){
+	public int loadNodes(int qid){
 		Gson gson = new Gson();
 		Reader reader = null;
 		try{
@@ -198,8 +197,13 @@ class NodesLocationManager{
 				e.printStackTrace();
 			}
 		nodes=gson.fromJson(reader,Node[].class);	
-		System.out.println("loaded json "+nodes.length);
+		//System.out.println("loaded json "+nodes.length);
+		return nodes.length;
 	}
+	public int getNumNodes(){
+		return nodes.length;
+	}
+	
 	public Node getClosestNode(int questionID, double x, double y){
 		if(currentQuestion!=questionID){
 			loadNodes(questionID);
