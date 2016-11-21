@@ -1,2 +1,0 @@
-13px	68px	1660px	994px	1706	1365
-0	1472839877256	translate(830,497)scale(1, 1)scale(1,1)translate(-415, 0)translate(0,0)scale(1)	translate(830,497)scale(-1, 1)scale(1,1)translate(-415, 0)translate(0,0)scale(1)

@@ -11,7 +11,6 @@ import java.util.Stack;
 import javax.swing.JOptionPane;
 
 
-//Warning: This parser is currently untested
 public class Parser{
 	static String inputFile;
 	public static void main(String[] args){
@@ -180,8 +179,8 @@ public class Parser{
 			}
 			//Align and determine closest node for gaze points(UNUSED)
 			NodesLocationManager NLM=new NodesLocationManager();
-			PrintWriter writer=new PrintWriter(filename+"-gaze-nodes.txt","UTF-8");
 			/*
+			PrintWriter writer=new PrintWriter(filename+"-gaze-nodes.txt","UTF-8");
 	    	for(String parseResult:gazeResults){
 				String[] parts=parseResult.split("\t",-1);
 		    	int qid=Integer.parseInt(parts[0]);
@@ -205,8 +204,8 @@ public class Parser{
 					writer.println("no node within 100px radius found");
 				}
 	    	}
-	    	*/
 			writer.close();
+			*/
 			ArrayList<String> switchResults = new ArrayList<String>();
 			ArrayList<String> switchNodes = new ArrayList<String>();
 			
@@ -218,7 +217,7 @@ public class Parser{
 			String prevNode="";
 			String prevTime="";
 			//Align and determine nodes for fixation points
-			writer=new PrintWriter(filename+"-fix-nodes.txt","UTF-8");
+			PrintWriter writer=new PrintWriter(filename+"-fix-nodes.txt","UTF-8");
 	    	for(String parseResult:fixResults){
 				String[] parts=parseResult.split("\t",-1);
 				if(Integer.parseInt(parts[1])<0)
